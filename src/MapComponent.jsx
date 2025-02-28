@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Polyline, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import axios from "axios";
@@ -20,7 +20,7 @@ const MapComponent = () => {
         iconAnchor: [12, 41]
     });
 
-    // Function to get coordinates from a location name
+    // Get coordinates from a location name
     const getCoordinates = async (location) => {
         const url = `https://nominatim.openstreetmap.org/search?format=json&q=${location}`;
         try {
@@ -39,7 +39,7 @@ const MapComponent = () => {
         }
     };
 
-    // Function to find and display route
+    // Find route and calculate distance
     const findRoute = async () => {
         if (!startLocation || !destinationLocation) {
             alert("Please enter both locations.");
@@ -55,7 +55,7 @@ const MapComponent = () => {
         setDestinationCoords(destinationCoords);
 
         // Calculate distance (Haversine formula)
-        const R = 6371; // Radius of Earth in km
+        const R = 6371;
         const dLat = (destinationCoords.lat - startCoords.lat) * (Math.PI / 180);
         const dLon = (destinationCoords.lng - startCoords.lng) * (Math.PI / 180);
         const a =
@@ -68,12 +68,39 @@ const MapComponent = () => {
         setDistance(distance);
     };
 
-    // Function to switch locations
+    // Switch locations
     const switchLocations = () => {
         setStartLocation(destinationLocation);
         setDestinationLocation(startLocation);
         setStartCoords(destinationCoords);
         setDestinationCoords(startCoords);
+    };
+
+    // Get current location
+    const getCurrentLocation = () => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    const { latitude, longitude } = position.coords;
+                    setStartCoords({ lat: latitude, lng: longitude });
+
+                    // Reverse geocode to get location name
+                    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`;
+                    try {
+                        const response = await axios.get(url);
+                        setStartLocation(response.data.display_name);
+                    } catch (error) {
+                        console.error("Error getting location name:", error);
+                    }
+                },
+                (error) => {
+                    console.error("Error getting current location:", error);
+                    alert("Unable to fetch current location.");
+                }
+            );
+        } else {
+            alert("Geolocation is not supported by your browser.");
+        }
     };
 
     return (
@@ -87,6 +114,11 @@ const MapComponent = () => {
                 placeholder="Enter initial location"
                 style={{ margin: "5px", padding: "10px", width: "40%" }}
             />
+            <button onClick={getCurrentLocation} style={{ padding: "10px 15px", margin: "5px" }}>
+                📍 Use Current Location
+            </button>
+            <br />
+
             <input
                 type="text"
                 value={destinationLocation}
@@ -95,6 +127,7 @@ const MapComponent = () => {
                 style={{ margin: "5px", padding: "10px", width: "40%" }}
             />
             <br />
+
             <button onClick={switchLocations} style={{ padding: "10px 20px", margin: "5px" }}>Switch Locations</button>
             <button onClick={findRoute} style={{ padding: "10px 20px", margin: "5px" }}>Find Route</button>
 
